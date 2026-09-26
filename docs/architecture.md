@@ -282,6 +282,13 @@ When Kerub changes an existing system setting (for example disabling
 LLMNR), the **previous value** is part of the undo information, so the
 machine returns exactly to its prior state.
 
+**Footprint manifest.** Every change Kerub makes outside its own folders
+(WFP objects, device policies, system settings with their previous values)
+is also recorded in a small manifest in the registry,
+`HKLM\SOFTWARE\Kerub\Footprint` (SYSTEM and Administrators only). The
+manifest is independent of the database, so the emergency reset (§8.4) can
+undo everything even if the database is missing or damaged.
+
 ---
 
 ## 6. State, storage and logs
@@ -393,8 +400,9 @@ and binaries. Logs are kept only if the user asks for it.
 
 ### 8.4 Emergency reset
 
-`kerub-cli emergency-reset` works **without the service**: it removes every
-Kerub-owned filter and policy directly. A PowerShell fallback exists in
+`kerub-cli emergency-reset` works **without the service**: it reads the
+footprint manifest (§5.3) and removes every Kerub-owned filter and policy
+directly. A PowerShell fallback exists in
 `scripts/emergency-reset.ps1`. Procedure: [dev/recovery.md](dev/recovery.md).
 
 ---
