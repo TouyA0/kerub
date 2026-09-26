@@ -151,7 +151,7 @@ in the roadmap task that implements the requirement.
 | NFR-PERF-002 | Idle memory shall stay below 50 MB for the service and 150 MB for the agent. | S | 1.0 |
 | NFR-PERF-003 | 95 % of alerts shall be raised less than 2 seconds after the triggering event. | S | 1.0 |
 | NFR-PERF-004 | Kerub shall not reduce network throughput by more than 5 %. | S | 1.0 |
-| NFR-PERF-005 | The database shall be size-capped (default 500 MB) with a configurable retention (default 30 days). | M | 1.0 |
+| NFR-PERF-005 | The database shall be size-capped (default 500 MB) with configurable retention (defaults: 30 days for events, 180 days for alerts and actions; see [privacy.md](privacy.md)). | M | 1.0 |
 | NFR-REL-001 | Every enforcement shall be reversible through maintenance mode or the emergency reset script. | M | 1.0 |
 | NFR-REL-002 | The failure of one module shall not affect the others. | M | 1.0 |
 | NFR-REL-003 | At startup, the service shall reconcile the actual system state with its action journal. | M | 1.0 |
