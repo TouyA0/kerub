@@ -73,7 +73,7 @@ flowchart LR
 
 | Milestone | Goal | Detail level |
 |-----------|------|--------------|
-| P | The author and the environment are ready | Detailed |
+| P | The author, the environment and the first design are ready | Detailed |
 | M0 | A clean, checked, empty workspace | Detailed |
 | v0.1 | Kerub installs, runs, talks, and uninstalls cleanly — with no protection yet | Detailed |
 | v0.2 | First real protection: network profiles and VPN kill switch | Detailed |
@@ -96,6 +96,14 @@ flowchart LR
   `.claude/` in `projet-kerub/`, as designed in the planning phase.
 - [ ] **P.4 — Re-read** the vision, threat model and architecture after
   learning Rust, and note anything that no longer makes sense.
+- [ ] **P.5 — First agent design** *(with Claude Design, in parallel with
+  P.1)*. Colors (global states, severity levels, light and dark themes),
+  typography, and the priority screens: tray menu, USB approval prompt, HID
+  confirmation, first-run wizard, "service unreachable" state, dashboard,
+  alert detail, network card → `docs/design/`.
+  *Done when:* the security-sensitive screens are designed, and any gap they
+  revealed in the requirements or the IPC protocol has been fixed in the
+  documents.
 
 ---
 
@@ -280,6 +288,8 @@ security foundation (IPC, service hardening, logs) is real.
     - Translation files `en.json` and `fr.json`; no hard-coded UI string.
     - Tray icon with the three global states; "service unreachable" alert
       after three missed pings.
+    - Colors and typography from `docs/design/` (P.5) applied as design
+      tokens.
     - Dependabot extended to npm.
 
 - [ ] **T1.13 — Lab deployment scripts**
@@ -400,8 +410,9 @@ throughput impact under 5 % (NFR-PERF-004). Tag `v0.2.0`.
 
 ## 7. v0.3 — Detection and response *(outline)*
 
-- [ ] **T3.0 — Agent design** *(human, with Claude Design)*: every screen
-  of the agent, states, light and dark themes → `docs/design/`.
+- [ ] **T3.0 — Agent design refinement** *(human, with Claude Design)*:
+  update the P.5 designs with what v0.1 and v0.2 taught, and complete every
+  remaining screen → `docs/design/`.
 - [ ] **T3.1 — Event log sensor**: subscriptions to Security and Sysmon
   channels; trusted providers only; bounded queues. *SEC-DET-001,
   SEC-DET-002, FR-DET-001*
