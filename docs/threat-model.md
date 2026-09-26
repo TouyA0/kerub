@@ -113,7 +113,7 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 |----|--------|--------|------------|
 | TM-IPC-1 | S | A malicious user process connects to the pipe and impersonates the agent (for example to unlock a USB device or disable a module) | Pipe DACL restricted to SYSTEM and the interactive user; the service verifies the client's image path (under Program Files) and Authenticode signature; sensitive requests require re-authentication verified by the service |
 | TM-IPC-2 | S | Pipe squatting: malware creates the pipe first to capture the agent's messages and the unlock password | Service creates the pipe with `FILE_FLAG_FIRST_PIPE_INSTANCE` at startup; the agent verifies the server process runs as SYSTEM from the expected path before sending anything |
-| TM-IPC-3 | E | A malformed message exploits a parsing bug in the SYSTEM service | Memory-safe language; strict schema validation; maximum message size; typed requests only — no generic "execute" command; fuzzing of the parser |
+| TM-IPC-3 | E | A malformed message exploits a parsing bug in the SYSTEM service | Memory-safe language, with `unsafe` code confined to the platform layer; strict schema validation; maximum message size; typed requests only — no generic "execute" command; fuzzing of the parser |
 | TM-IPC-4 | D | A process floods the pipe to block the service | Connection limit, per-client rate limiting, read timeouts |
 | TM-IPC-5 | R | A harmful request cannot be attributed | Every request is written to the audit log with client PID, image path and user SID |
 | TM-IPC-6 | S | Password brute-force through the IPC | Rate limiting with exponential back-off; lockout events logged and alerted |
@@ -122,11 +122,11 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 
 | ID | STRIDE | Threat | Mitigation |
 |----|--------|--------|------------|
-| TM-SVC-1 | T | Binary replacement or DLL hijacking | Install under Program Files (admin-only write); quoted service path; DLLs loaded from System32 only (`NewLazySystemDLL`, `SetDefaultDllDirectories`) |
+| TM-SVC-1 | T | Binary replacement or DLL hijacking | Install under Program Files (admin-only write); quoted service path; DLL search restricted to System32 at startup (`SetDefaultDllDirectories`); no DLL loaded from a relative or user-writable path |
 | TM-SVC-2 | D | A non-admin user stops, reconfigures or kills the service | Service and process DACLs deny these rights to non-admins |
 | TM-SVC-3 | D | An admin-level attacker stops the service (T7) | Out of scope for prevention. Detection: agent heartbeat, alert when the service disappears, gap visible in the audit log |
 | TM-SVC-4 | E | The service holds more privileges than it needs | Declared required-privileges list; every other privilege removed from the token |
-| TM-SVC-5 | D | An unhandled panic crashes the whole service | Every goroutine runs under a supervisor with `recover`; automatic restart configured; persistent protections survive a crash (fail-closed) |
+| TM-SVC-5 | D | An unhandled panic crashes the whole service | Every task runs under a supervisor that detects panics and restarts the affected module; automatic service restart configured; persistent protections survive a crash (fail-closed) |
 
 ### 5.3 Agent (`kerub-agent`)
 
@@ -134,7 +134,7 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 |----|--------|--------|------------|
 | TM-AG-1 | S | Malware shows a fake Kerub prompt to phish the unlock password | Every genuine prompt displays a personal security phrase chosen at setup; disabling protections requires UAC elevation (secure desktop), not only the password |
 | TM-AG-2 | T | Malware injects into or modifies the agent | The agent holds no authority: every decision and verification happens in the service |
-| TM-AG-3 | E | Script injection in the WebView2 UI through event data (file names, command lines, hostnames controlled by an attacker) | Event data is never rendered as HTML; strict Content Security Policy; no remote content loaded; minimal Go bindings exposed to the front-end |
+| TM-AG-3 | E | Script injection in the WebView2 UI through event data (file names, command lines, hostnames controlled by an attacker) | Event data is never rendered as HTML; strict Content Security Policy; no remote content loaded; minimal set of commands exposed to the front-end, restricted by Tauri's capability system |
 | TM-AG-4 | I | A keylogger in the user session captures the unlock password | Accepted risk (R2); the password only unlocks low-impact actions |
 
 ### 5.4 Data stores (configuration, policy, database, audit log, secrets)
@@ -191,7 +191,7 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 
 | ID | STRIDE | Threat | Mitigation |
 |----|--------|--------|------------|
-| TM-SC-1 | T | Compromised third-party dependency | Minimal dependencies; `go.sum` pinning; govulncheck and Dependabot in CI; every new dependency justified |
+| TM-SC-1 | T | Compromised third-party dependency | Minimal dependencies; `Cargo.lock` and npm lockfile committed; cargo-audit, cargo-deny and Dependabot in CI; every new dependency justified |
 | TM-SC-2 | T | Malicious update delivered to users | No automatic update before v1.0; later, updates signed (ed25519) and verified before being applied |
 | TM-SC-3 | T | Compromised GitHub account or CI | 2FA; signed commits; branch protection; GitHub Actions pinned by commit SHA with least-privilege tokens |
 | TM-SC-4 | T | Users cannot verify the binaries they download | Published checksums; code signing of releases |

@@ -166,8 +166,8 @@ in the roadmap task that implements the requirement.
 | NFR-PRIV-001 | Kerub shall contain no telemetry. | M | 1.0 |
 | NFR-PRIV-002 | No data shall leave the machine without a per-feature opt-in. | M | 1.0 |
 | NFR-PRIV-003 | Collected data and retention shall be documented in [privacy.md](privacy.md). | M | 1.0 |
-| NFR-MAINT-001 | All Windows-specific calls shall be isolated in `internal/platform`. | M | 1.0 |
-| NFR-MAINT-002 | Test coverage shall be at least 70 % for packages outside `internal/platform`. | S | 1.0 |
+| NFR-MAINT-001 | All Windows-specific calls shall be isolated in the `kerub-platform` crate, the only crate allowed to contain `unsafe` code. | M | 1.0 |
+| NFR-MAINT-002 | Test coverage shall be at least 70 % for crates other than `kerub-platform`. | S | 1.0 |
 | NFR-MAINT-003 | Every architecture decision shall be recorded as an ADR. | M | 1.0 |
 | NFR-MAINT-004 | Build, tests, linters and security scanners shall pass in CI before any merge. | M | 1.0 |
 | NFR-OBS-001 | Diagnostic logs shall be structured (JSON), rotated, and kept separate from the security audit log. | M | 1.0 |
@@ -189,7 +189,7 @@ Each requirement mitigates one or more threats from the
 | SEC-SVC-001 | Binaries shall be installed under Program Files with a quoted service path; DLLs shall be loaded from System32 only. | TM-SVC-1 | M | 1.0 |
 | SEC-SVC-002 | Service and process DACLs shall deny stop, reconfigure and terminate rights to non-admins. | TM-SVC-2 | M | 1.0 |
 | SEC-SVC-003 | The service shall declare its required privileges and drop all others. | TM-SVC-4 | M | 1.0 |
-| SEC-SVC-004 | Every goroutine shall run under a supervisor that recovers from panics. | TM-SVC-5 | M | 1.0 |
+| SEC-SVC-004 | Every task shall run under a supervisor that detects panics and restarts the affected module. | TM-SVC-5 | M | 1.0 |
 | SEC-SVC-005 | The agent shall alert when it loses contact with the service. | TM-SVC-3 | M | 1.0 |
 | SEC-AG-001 | Every genuine prompt shall display the user's personal security phrase. | TM-AG-1 | M | 1.0 |
 | SEC-AG-002 | Disabling a protection shall require UAC elevation. | TM-AG-1 | M | 1.0 |
@@ -204,7 +204,7 @@ Each requirement mitigates one or more threats from the
 | SEC-RSP-002 | Everything Kerub creates in the system shall carry Kerub's own identifiers and be removed on uninstall. | TM-RSP-2 | M | 1.0 |
 | SEC-NET-001 | Kill-switch filters shall be persistent and active at boot. | TM-NET-1, TM-NET-2 | M | 1.0 |
 | SEC-EXT-001 | External services shall be opt-in, receive hashes only, and use TLS with system certificate validation. | TM-EXT-1, TM-EXT-2 | M | Later |
-| SEC-SC-001 | Every new dependency shall be justified; dependencies shall be pinned and scanned (govulncheck, Dependabot). | TM-SC-1 | M | 1.0 |
+| SEC-SC-001 | Every new dependency shall be justified; dependencies shall be pinned and scanned (cargo-audit, cargo-deny, Dependabot). | TM-SC-1 | M | 1.0 |
 | SEC-SC-002 | No automatic update before v1.0; afterwards, updates shall be signed and verified before being applied. | TM-SC-2 | M | 1.0 |
 | SEC-SC-003 | The repository shall use 2FA, signed commits, branch protection, and GitHub Actions pinned by commit SHA. | TM-SC-3 | M | 1.0 |
 | SEC-SC-004 | Releases shall publish checksums and signed binaries. | TM-SC-4 | S | 1.0 |

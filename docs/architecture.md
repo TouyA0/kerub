@@ -17,14 +17,14 @@ These decisions shape everything else. Each links to its ADR when one exists.
 
 | # | Decision | Why | Record |
 |---|----------|-----|--------|
-| D1 | Go for all Kerub binaries | Memory safety for SYSTEM code, single static binary, good Windows support | [ADR-0001](adr/0001-use-go.md) |
-| D2 | Wails (Go + web front-end) for the agent UI | Reuses web skills, native window through WebView2 | [ADR-0002](adr/0002-use-wails.md) |
+| D1 | Rust for all Kerub binaries | Memory safety without garbage collector, complete Windows API through `windows-rs`, minimal footprint | [ADR-0001](adr/0001-use-rust.md) |
+| D2 | Tauri v2 with a React front-end for the agent UI | Native window through WebView2, Rust back-end, polished web UI | [ADR-0002](adr/0002-use-tauri-react.md) |
 | D3 | Windows Filtering Platform for all network enforcement | Persistent and boot-time filters, own sublayer, clean removal | [ADR-0003](adr/0003-use-wfp.md) |
 | D4 | SQLite for local storage | Embedded, transactional, no server | [ADR-0004](adr/0004-use-sqlite.md) |
 | D5 | Named pipe + JSON messages for agent ↔ service | Local-only, ACL-protected, easy to validate and fuzz | [ADR-0005](adr/0005-ipc-named-pipe-json.md) |
 | D6 | No kernel driver | Signing requirements and risk are out of proportion for this project | [ADR-0006](adr/0006-no-kernel-driver.md) |
 | D7 | Three processes with privilege separation | Only the service is privileged; the UI holds no authority | this document, §3 |
-| D8 | Windows-specific code isolated in `internal/platform` | Testable logic, one place to audit dangerous calls | this document, §7 |
+| D8 | Windows-specific code isolated in the `kerub-platform` crate, the only crate allowed to use `unsafe` | Testable logic, one place to audit dangerous code | this document, §7 |
 | D9 | Every action is journaled before execution, with undo and expiry | Reversibility, crash recovery, clean uninstall | this document, §5.3 |
 | D10 | Two separate logs: diagnostic log and security audit log | Different audiences, different integrity guarantees | this document, §6 |
 
@@ -63,7 +63,7 @@ through documented Windows APIs.
 ```mermaid
 flowchart LR
     subgraph USER["User session — medium integrity"]
-        AG["<b>kerub-agent</b><br/>Wails app: tray icon,<br/>dashboard, prompts"]
+        AG["<b>kerub-agent</b><br/>Tauri app: tray icon,<br/>dashboard, prompts"]
         CLI["<b>kerub-cli</b><br/>admin tool<br/>(run elevated)"]
     end
     subgraph SYS["Session 0 — LocalSystem"]
@@ -142,59 +142,71 @@ Kerub acts in two different ways, and both go through the action manager.
 Network profiles, the VPN kill switch and device policies are declarative.
 Detections are reactive.
 
-### 4.3 Packages and responsibilities
+### 4.3 Crates and responsibilities
 
-| Package | Responsibility |
-|---------|----------------|
-| `internal/app` | Wires everything together; startup and shutdown sequences |
-| `internal/event` | Event types (ECS subset, see [event-schema.md](event-schema.md)) |
-| `internal/bus` | Bounded fan-out pipeline; counts and reports dropped events |
-| `internal/module` | Module contract and supervisor (panic recovery, restart, health) |
-| `internal/modules/*` | One package per module: `netguard`, `vpnguard`, `usbguard`, `logwatch`, `posture`, later `filewatch` |
-| `internal/detect` | Rule loading, Sigma matching, threshold correlation, alert creation |
-| `internal/policy` | Turns alerts and desired states into actions according to profile, mode and exceptions |
-| `internal/respond` | Action manager and responders (firewall, devices, settings) |
-| `internal/store` | SQLite access, migrations, retention |
-| `internal/auditlog` | Append-only, hash-chained security log |
-| `internal/config` | Embedded defaults, loading, validation, versioning, hot reload |
-| `internal/ipc` | Pipe server and client, authentication, message types |
-| `internal/secret` | Argon2id hashing, DPAPI wrappers |
-| `internal/platform` | Interfaces to Windows (`windows/`) and their test doubles (`fake/`) |
-| `internal/version` | Build version, injected at build time |
+The code is a Cargo workspace. Splitting it into crates enforces the
+dependency rules at compile time and lets every crate except
+`kerub-platform` declare `#![forbid(unsafe_code)]`.
 
-**Dependency rule:** packages depend inward. `modules` may use `detect`,
-`policy`, `respond` and `platform` interfaces; nothing depends on
-`modules`; nothing outside `platform/windows` imports
-`golang.org/x/sys/windows`.
+| Crate | Responsibility |
+|-------|----------------|
+| `kerub-core` | Event types (ECS subset, see [event-schema.md](event-schema.md)), action types, event bus, module contract and supervisor |
+| `kerub-config` | Embedded defaults, loading, validation, versioning, hot reload |
+| `kerub-detect` | Rule loading, Sigma matching, threshold correlation, alert creation |
+| `kerub-policy` | Turns alerts and desired states into actions according to profile, mode and exceptions |
+| `kerub-respond` | Action manager and responders (firewall, devices, settings) |
+| `kerub-store` | SQLite access, migrations, retention |
+| `kerub-auditlog` | Append-only, hash-chained security log |
+| `kerub-ipc` | Message types, framing, pipe server and client, peer verification — shared by the three binaries |
+| `kerub-secret` | Argon2id hashing, DPAPI |
+| `kerub-modules` | One module per feature: `netguard`, `vpnguard`, `usbguard`, `logwatch`, `posture`, later `filewatch` |
+| `kerub-platform` | Traits abstracting Windows, their Windows implementations and their test doubles |
+
+**Dependency rules:**
+
+- Crates depend inward: `kerub-modules` may use `detect`, `policy`,
+  `respond` and the `platform` traits; nothing depends on `kerub-modules`
+  except the service binary.
+- Only `kerub-platform` depends on the `windows` crate and contains
+  `unsafe` code.
+- The agent and the CLI depend only on `kerub-core` types and `kerub-ipc`.
+
+**Runtime and conventions:**
+
+- Asynchronous runtime: `tokio`.
+- Errors: typed errors in library crates, errors with context in binaries.
+- Logging: `tracing`, JSON output, file rotation.
 
 ### 4.4 Main contracts (sketch)
 
-```go
-// A Module is one independently switchable feature.
-type Module interface {
-    Name() string
-    Start(ctx context.Context, deps Deps) error // must return quickly; work runs in goroutines
-    Stop(ctx context.Context) error
-    Health() Health                              // Running, Degraded, Failed + reason
+```rust
+/// One independently switchable feature.
+pub trait Module: Send + Sync {
+    fn name(&self) -> &'static str;
+    /// Must return quickly; long-running work is spawned as supervised tasks.
+    async fn start(&self, deps: Deps) -> Result<()>;
+    async fn stop(&self) -> Result<()>;
+    /// Running, Degraded or Failed, with a reason.
+    fn health(&self) -> Health;
 }
 
-// A Sensor turns a Windows signal into normalized events.
-type Sensor interface {
-    Run(ctx context.Context, emit func(event.Event)) error
+/// Turns a Windows signal into normalized events.
+pub trait Sensor: Send {
+    async fn run(self, events: mpsc::Sender<Event>) -> Result<()>;
 }
 
-// A Responder applies one kind of action and knows how to undo it.
-type Responder interface {
-    Kind() action.Kind
-    Apply(ctx context.Context, a action.Action) (action.Undo, error)
-    Revert(ctx context.Context, u action.Undo) error
-    // Observed returns what actually exists in the system, for reconciliation.
-    Observed(ctx context.Context) ([]action.Observed, error)
+/// Applies one kind of action and knows how to undo it.
+pub trait Responder: Send + Sync {
+    fn kind(&self) -> ActionKind;
+    async fn apply(&self, action: &Action) -> Result<Undo>;
+    async fn revert(&self, undo: &Undo) -> Result<()>;
+    /// What actually exists in the system, for reconciliation.
+    async fn observed(&self) -> Result<Vec<Observed>>;
 }
 ```
 
-These are sketches: exact signatures are decided when each package is
-implemented.
+These are sketches: exact signatures (including how the traits are made
+object-safe) are decided when each crate is implemented.
 
 ---
 
@@ -289,8 +301,8 @@ machine returns exactly to its prior state.
 
 Main tables: `events`, `alerts`, `actions` (journal), `exceptions`,
 `devices` (allow-list), `config_versions`. Schema changes go through
-numbered migrations in `internal/store/migrations`. Retention and size cap
-follow NFR-PERF-005.
+numbered migrations in `crates/kerub-store/migrations`. Retention and size
+cap follow NFR-PERF-005.
 
 ### 6.3 Configuration
 
@@ -322,10 +334,11 @@ them up.
 
 ## 7. Platform layer
 
-All Windows-specific code lives in `internal/platform`, behind interfaces:
+All Windows-specific code lives in the `kerub-platform` crate, behind
+traits:
 
-| Interface | Wraps |
-|-----------|-------|
+| Trait | Wraps |
+|-------|-------|
 | `Firewall` | WFP: provider, sublayer, filters |
 | `Devices` | Device notifications, installation restrictions, enable/disable |
 | `EventLogs` | Subscriptions to event channels |
@@ -334,10 +347,20 @@ All Windows-specific code lives in `internal/platform`, behind interfaces:
 | `Secrets` | DPAPI |
 | `Settings` | Registry and system settings, with read-before-write |
 
-`platform/windows` holds the real implementations (`//go:build windows`);
-`platform/fake` holds in-memory doubles used by unit tests. Rules for this
-layer: DLLs loaded through `NewLazySystemDLL` only, every return code
-checked, no business logic.
+Real implementations are compiled only on Windows (`#[cfg(windows)]`);
+in-memory test doubles live in a `fake` module used by unit tests of the
+other crates.
+
+Rules for this crate:
+
+- It is the **only** crate allowed to contain `unsafe` code; every other
+  crate declares `#![forbid(unsafe_code)]`.
+- Every `unsafe` block carries a `// SAFETY:` comment explaining why it is
+  sound.
+- Every Windows return code is checked.
+- It contains no business logic.
+- The service restricts the DLL search path to System32 at startup
+  (`SetDefaultDllDirectories`).
 
 ---
 
@@ -345,15 +368,16 @@ checked, no business logic.
 
 ### 8.1 Service startup
 
-1. Load and validate configuration (fallback to last known good).
-2. Open the store and run migrations.
-3. Verify the audit-log hash chain; alert if broken.
-4. **Reconcile**: compare the action journal with what actually exists in
+1. Restrict the DLL search path.
+2. Load and validate configuration (fallback to last known good).
+3. Open the store and run migrations.
+4. Verify the audit-log hash chain; alert if broken.
+5. **Reconcile**: compare the action journal with what actually exists in
    the system; revert expired actions, re-apply missing ones, remove
    unknown Kerub-owned artifacts.
-5. Start modules under the supervisor.
-6. Start the IPC server.
-7. Report *ready*.
+6. Start modules under the supervisor.
+7. Start the IPC server.
+8. Report *ready*.
 
 ### 8.2 Service shutdown
 
@@ -393,20 +417,27 @@ Fixed once, never changed:
 
 ```
 kerub/
-├── cmd/
-│   ├── kerub-svc/           service entry point
-│   ├── kerub-agent/         Wails app (Go + frontend/)
+├── Cargo.toml               workspace definition
+├── Cargo.lock
+├── rust-toolchain.toml      pinned Rust version
+├── justfile                 build, test, lint, package tasks
+├── apps/
+│   ├── kerub-svc/           service binary
+│   ├── kerub-agent/         Tauri app
+│   │   ├── src-tauri/       Rust side
+│   │   └── ui/              React + TypeScript front-end
 │   └── kerub-cli/           admin tool
-├── internal/                see §4.3
+├── crates/                  libraries, see §4.3
 ├── rules/
 │   ├── sigma/               Sigma detection rules
 │   └── threshold/           threshold rules
 ├── configs/
 │   ├── default-policy.yaml
 │   └── sysmon/              recommended Sysmon configuration
+├── fuzz/                    fuzz targets
 ├── scripts/                 dev install, emergency reset
 ├── installer/               MSI definition
-├── test/
+├── tests/
 │   ├── e2e/                 end-to-end tests, run in the lab VM
 │   └── fixtures/evtx/       recorded attack logs
 └── docs/
@@ -418,10 +449,10 @@ kerub/
 
 | Level | Where | What |
 |-------|-------|------|
-| Unit | CI and dev machine | All logic, with `platform/fake` |
-| Fuzz | CI | IPC parser, rule parser, config parser |
+| Unit | CI and dev machine | All logic, with the platform test doubles |
+| Fuzz | CI, Linux job | IPC decoder, rule parser, config parser (platform-independent code) |
 | Detection | CI | Rules replayed against recorded EVTX attack samples |
-| Integration | Lab VM only (`-tags integration`) | Real WFP, devices, event logs |
+| Integration | Lab VM only (ignored by default) | Real WFP, devices, event logs |
 | End-to-end | Lab VM only | Installed service + agent + simulated attacks (Atomic Red Team) |
 
 Integration and end-to-end tests **never** run on the development machine.
@@ -430,9 +461,12 @@ Integration and end-to-end tests **never** run on the development machine.
 
 ## 12. Build and release
 
-- `Taskfile.yml` drives build, test, lint and packaging.
-- The version is injected at build time into `internal/version`.
-- CI (GitHub Actions, Windows runner) runs build, tests, linters, gosec
-  and govulncheck on every pull request.
+- Target: `x86_64-pc-windows-msvc`; the Rust version is pinned in
+  `rust-toolchain.toml`.
+- The `justfile` drives build, tests, lint and packaging; the workspace
+  version in `Cargo.toml` is the single source of the version number.
+- CI (GitHub Actions, Windows runner) runs `cargo fmt --check`,
+  `cargo clippy` with warnings as errors, `cargo test`, `cargo audit`,
+  `cargo deny`, and the front-end linter on every pull request.
 - Releases publish binaries, the installer and SHA-256 checksums; signing is
   added before v1.0 (SEC-SC-004).
