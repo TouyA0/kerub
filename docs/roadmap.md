@@ -96,7 +96,7 @@ flowchart LR
   `.claude/` in `projet-kerub/`, as designed in the planning phase.
 - [ ] **P.4 — Re-read** the vision, threat model and architecture after
   learning Rust, and note anything that no longer makes sense.
-- [ ] **P.5 — First agent design** *(with Claude Design, in parallel with
+- [x] **P.5 — First agent design** *(with Claude Design, in parallel with
   P.1)*. Colors (global states, severity levels, light and dark themes),
   typography, and the priority screens: tray menu, USB approval prompt, HID
   confirmation, first-run wizard, "service unreachable" state, dashboard,
@@ -394,7 +394,7 @@ uninstalls without residue. Tag `v0.1.0`.
     logged, expires automatically.
 
 - [ ] **T2.9 — Controls in the CLI and the agent**
-  - **Requirements:** FR-CORE-005, FR-CORE-007, FR-RSP-003
+  - **Requirements:** FR-CORE-005, FR-CORE-007, FR-CORE-010, FR-RSP-003
   - **Depends on:** T2.3 to T2.8
   - **Scope:** `kerub-ipc`, `apps/kerub-cli`, `apps/kerub-agent`
   - **Acceptance criteria:**
@@ -428,7 +428,8 @@ throughput impact under 5 % (NFR-PERF-004). Tag `v0.2.0`.
 - [ ] **T3.8 — Notifications**, grouped and rate-limited. *FR-VIS-003,
   NFR-USA-003*
 - [ ] **T3.9 — Timeline and alert detail**: `timeline.query`, `alert.get`,
-  UI pages. *FR-VIS-001, FR-VIS-002*
+  mark as reviewed, make a block permanent, UI pages. *FR-VIS-001,
+  FR-VIS-002, FR-VIS-009, FR-RSP-008*
 - [ ] **T3.10 — Agent UI** implemented from the design.
 
 **Exit criteria:** attacks from `kerub-kali` and Atomic Red Team are
@@ -446,9 +447,11 @@ NFR-PERF-003.
   security phrase, back-off. *SEC-AG-001, SEC-IPC-004*
 - [ ] **T4.4 — Allow-list**, one-time and permanent approvals. *FR-DEV-002*
 - [ ] **T4.5 — HID confirmation** with every safeguard of
-  [recovery.md](dev/recovery.md) §6. *FR-DEV-003*
+  [recovery.md](dev/recovery.md) §6; answers accepted only from the mouse or
+  trusted keyboards. *FR-DEV-003, SEC-DEV-001*
 - [ ] **T4.6 — Offline recovery procedure** finalized and tested in the lab.
 - [ ] **T4.7 — Devices page** in the agent.
+- [ ] **T4.8 — Composite device flagging**. *FR-DEV-007*
 
 **Exit criteria:** unknown storage and a simulated BadUSB (new HID) are
 blocked until approved; no scenario locks out keyboard and mouse together.
@@ -459,14 +462,16 @@ blocked until approved; no scenario locks out keyboard and mouse together.
 
 - [ ] **T5.1 — Posture checks**. *FR-POS-001*
 - [ ] **T5.2 — Score and explanations**. *FR-POS-002, FR-POS-003*
-- [ ] **T5.3 — First-run wizard**: password, security phrase, profile,
-  audit mode everywhere. *FR-CORE-008*
+- [ ] **T5.3 — First-run wizard**: elevated once, password, security
+  phrase, profile, audit mode everywhere. *FR-CORE-008, SEC-IPC-007*
 - [ ] **T5.4 — False-positive exceptions**. *FR-VIS-004*
 - [ ] **T5.5 — JSON Lines export**. *FR-VIS-005*
 - [ ] **T5.6 — Roles and elevation**: admin-only policy changes, UAC to
   disable protections. *FR-CFG-001, SEC-AG-002*
 - [ ] **T5.7 — French translation complete, accessibility pass**.
   *NFR-USA-002, NFR-USA-004*
+- [ ] **T5.8 — Password and security phrase management**: strength check,
+  change password, change phrase. *SEC-ST-004, SEC-AG-005*
 
 ---
 

@@ -42,6 +42,7 @@ sends data anywhere must update this document in the same pull request.
 | Security posture | Results of configuration checks | Windows APIs, registry | Posture audit and score |
 | Alerts and actions | What was detected, what Kerub did, when, why | Kerub | Timeline, reversibility, investigation |
 | Kerub administration | Configuration versions, approvals, maintenance periods, IPC requests (client process, user SID) | Kerub | Accountability (audit log) |
+| Setup secrets | Argon2id hash of the unlock password; security phrase, encrypted with DPAPI | First-run wizard | Authenticate the user; let them recognize genuine prompts |
 | Diagnostics | Errors, timings, internal state | Kerub | Troubleshooting |
 
 ### What Kerub does **not** collect

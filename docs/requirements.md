@@ -42,8 +42,9 @@ in the roadmap task that implements the requirement.
 | FR-CORE-005 | Each module shall be independently enabled, disabled, and set to *audit* or *enforce* mode. | M | 1.0 |
 | FR-CORE-006 | The service shall report the health of each module (running, degraded, failed) to the agent. | M | 1.0 |
 | FR-CORE-007 | A maintenance mode shall suspend all enforcement for a limited duration; entering it requires elevation and is logged. | M | 1.0 |
-| FR-CORE-008 | A first-run wizard shall set the unlock password, the personal security phrase, the initial network profile, and start every module in audit mode. | M | 1.0 |
+| FR-CORE-008 | A first-run wizard shall set the unlock password, the personal security phrase, the initial network profile, and start every module in audit mode. It runs elevated (UAC), once. | M | 1.0 |
 | FR-CORE-009 | The service shall restart automatically after an unexpected termination. | M | 1.0 |
+| FR-CORE-010 | Administrative actions offered by the agent (restart the service, maintenance mode…) shall launch `kerub-cli` through UAC with fixed arguments. Apart from the first-run wizard, the agent never runs elevated. | M | 1.0 |
 
 ### 1.2 Network guard (`NET`)
 
@@ -56,7 +57,7 @@ in the roadmap task that implements the requirement.
 | FR-NET-005 | The kill switch shall prevent DNS queries outside the tunnel. | M | 1.0 |
 | FR-NET-006 | The kill switch shall handle IPv6 explicitly (tunneled or blocked, never leaked). | M | 1.0 |
 | FR-NET-007 | The kill switch shall remain enforced when the service is stopped or has crashed, and during boot. | M | 1.0 |
-| FR-NET-008 | The user shall be able to grant a time-limited exception to reach a captive portal. | S | 1.0 |
+| FR-NET-008 | The user shall be able to grant a time-limited exception (≤ 10 min) to reach a captive portal; it ends early as soon as the VPN connects, and public-profile rules keep applying. | S | 1.0 |
 | FR-NET-009 | Kerub shall inventory listening ports and alert when a new one opens. | S | Later |
 | FR-NET-010 | Kerub shall detect evil twin access points impersonating a known network. | C | Later |
 | FR-NET-011 | Kerub shall offer per-application outbound connection control. | C | Later |
@@ -88,17 +89,20 @@ in the roadmap task that implements the requirement.
 | FR-RSP-005 | Kerub shall terminate or suspend a process. | S | Later |
 | FR-RSP-006 | Kerub shall quarantine a file and restore it on request. | S | Later |
 | FR-RSP-007 | Kerub shall isolate the machine from the network in one action, keeping Kerub's own required connectivity. | C | Later |
+| FR-RSP-008 | From an alert, the user shall be able to make an automatic IP block permanent; this requires the unlock password and still respects the never-block list. | S | 1.0 |
 
 ### 1.5 Device control (`DEV`)
 
 | ID | Requirement | Prio | Release |
 |----|-------------|------|---------|
 | FR-DEV-001 | Kerub shall block any new USB mass-storage device until it is approved with the unlock password. | M | 1.0 |
-| FR-DEV-002 | Approval shall be one-time or permanent; permanent approvals are stored in an allow-list managed from the agent. | M | 1.0 |
-| FR-DEV-003 | Any new keyboard or other HID device shall require confirmation before it can send input. | M | 1.0 |
+| FR-DEV-002 | Approval shall be *just this time* (valid until the device is unplugged) or *always* (stored in an allow-list managed from the agent). Closing the prompt leaves the device blocked; it can be approved later from the agent. | M | 1.0 |
+| FR-DEV-003 | Any new keyboard or other HID device shall require confirmation before it can send input. The prompt accepts mouse input or input from already-trusted keyboards only; without an answer within 60 seconds, the device stays blocked. | M | 1.0 |
 | FR-DEV-004 | Unknown storage devices shall be mountable in read-only mode. | S | Later |
 | FR-DEV-005 | Kerub shall alert on new Bluetooth pairings. | C | Later |
 | FR-DEV-006 | Kerub shall alert when an application accesses the camera or microphone. | C | Later |
+| FR-DEV-007 | Kerub shall flag composite devices whose interfaces are unusual together (for example a keyboard that also reports storage or a network adapter). | S | 1.0 |
+| FR-DEV-008 | Approvals may be confirmed with Windows Hello, through a challenge signed by a Windows Hello key and verified by the service. | C | Later |
 
 ### 1.6 Security posture (`POS`)
 
@@ -131,6 +135,7 @@ in the roadmap task that implements the requirement.
 | FR-VIS-006 | Kerub shall forward events to a SIEM (syslog or HTTP). | C | Later |
 | FR-VIS-007 | Kerub shall send notifications to a phone through a self-hosted service (e.g. ntfy). | C | Later |
 | FR-VIS-008 | Kerub shall produce a weekly summary report. | C | Later |
+| FR-VIS-009 | The user shall be able to mark an alert as reviewed. | S | 1.0 |
 
 ### 1.9 Configuration and roles (`CFG`)
 
@@ -187,6 +192,7 @@ Each requirement mitigates one or more threats from the
 | SEC-IPC-004 | The IPC shall enforce connection limits, per-client rate limiting, timeouts, and back-off on failed password attempts. | TM-IPC-4, TM-IPC-6 | M | 1.0 |
 | SEC-IPC-005 | Every IPC request shall be audit-logged with client PID, image path and user SID. | TM-IPC-5 | M | 1.0 |
 | SEC-IPC-006 | The pipe shall reject remote clients and processes below medium integrity. | TM-IPC-7, TM-IPC-8 | M | 1.0 |
+| SEC-IPC-007 | Initial setup (unlock password, security phrase) shall be accepted only from an administrator-role client, and only while Kerub is not yet initialized. | TM-IPC-9 | M | 1.0 |
 | SEC-SVC-001 | Binaries shall be installed under Program Files with a quoted service path; DLLs shall be loaded from System32 only. | TM-SVC-1 | M | 1.0 |
 | SEC-SVC-002 | Service and process DACLs shall deny stop, reconfigure and terminate rights to non-admins. | TM-SVC-2 | M | 1.0 |
 | SEC-SVC-003 | The service shall declare its required privileges and drop all others. | TM-SVC-4 | M | 1.0 |
@@ -196,9 +202,12 @@ Each requirement mitigates one or more threats from the
 | SEC-AG-002 | Disabling a protection shall require UAC elevation. | TM-AG-1 | M | 1.0 |
 | SEC-AG-003 | The agent shall hold no authority: every decision and verification happens in the service. | TM-AG-2 | M | 1.0 |
 | SEC-AG-004 | Event data shall never be rendered as HTML; the UI shall enforce a strict CSP and load no remote content. | TM-AG-3 | M | 1.0 |
+| SEC-AG-005 | The security phrase shall be stored by the service (DPAPI), sent only to a verified agent, kept in memory only by the agent, and never shown while the service is unverified. | TM-AG-5 | M | 1.0 |
 | SEC-ST-001 | The data directory shall be accessible only to SYSTEM and Administrators; the service is its only writer. | TM-ST-1, TM-ST-3 | M | 1.0 |
 | SEC-ST-002 | The audit log shall be hash-chained. | TM-ST-2 | M | 1.0 |
 | SEC-ST-003 | The unlock password shall be hashed with Argon2id; secrets shall be protected with machine-scope DPAPI. | TM-ST-4, TM-EXT-3 | M | 1.0 |
+| SEC-ST-004 | The unlock password shall be at least 12 characters long and rejected if its estimated strength is weak. | TM-ST-4, TM-IPC-6 | M | 1.0 |
+| SEC-DEV-001 | Input from a device awaiting confirmation shall never reach its confirmation prompt; keyboard answers are accepted only from already-trusted keyboards, identified by their input source. | TM-DEV-3 | M | 1.0 |
 | SEC-DET-001 | Only trusted event channels and providers shall feed the detection engine. | TM-DET-1 | M | 1.0 |
 | SEC-DET-002 | Event queues shall be bounded; dropped events shall be counted and alerted. | TM-DET-2 | M | 1.0 |
 | SEC-RSP-001 | New modules and rules shall start in audit mode by default. | TM-RSP-1 | M | 1.0 |

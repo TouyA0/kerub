@@ -80,7 +80,7 @@ On every new connection, before reading the first message:
 | Role | Condition |
 |------|-----------|
 | `user` | Verified client, standard token |
-| `admin` | Verified `kerub-cli`, elevated token, member of `Administrators` |
+| `admin` | Verified `kerub-cli`, elevated token, member of `Administrators`; or verified `kerub-agent` started in first-run setup mode, elevated, while Kerub is not yet initialized |
 
 Any failure closes the connection without a response and writes an audit
 entry.
@@ -242,15 +242,28 @@ Topics: `status`, `alerts`, `approvals`, `actions`.
 
 | Type | Access | Purpose |
 |------|--------|---------|
-| `device.approve` | U+P | Approve a pending device, `once` or `always` |
+| `device.approve` | U+P | Approve a pending storage device: `once` (until unplugged) or `always` |
+| `device.confirm_input` | U | Confirm a pending keyboard or other HID device (see note) |
 | `device.deny` | U | Refuse a pending device |
 | `action.revert` | U+P | Undo an action Kerub applied |
+| `alert.mark_reviewed` | U | Mark an alert as reviewed |
 | `alert.mark_false_positive` | U+P | Create a narrowly scoped exception (one rule, one entity) |
-| `network.set_profile` | U+P | Assign a profile to the current network |
+| `alert.block_permanently` | U+P | Make an automatic IP block permanent (never-block list still applies) |
+| `network.set_profile` | U+P or U | U+P when the new profile is more trusted (Public → Work → Home); U otherwise |
 | `captive_portal.allow` | U+P | Open a time-limited exception (≤ 10 min) to reach a captive portal |
+| `password.change` | U+P | Change the unlock password (the current one is required) |
+| `phrase.change` | U+P | Change the security phrase |
 
 Every request that weakens protection requires the password, because
 malware running as the user could otherwise send it (TM-IPC-1).
+
+**Note on `device.confirm_input`.** Confirming a new keyboard must work with
+the mouse alone, so it cannot require typing a password. This is
+acceptable: the threat it addresses is a physical attacker with a BadUSB
+device (T1), and malware already running as the user gains nothing by
+approving an input device, since it can already simulate input. The agent
+accepts the answer only from the mouse or an already-trusted keyboard
+(SEC-DEV-001).
 
 ### 8.5 Administration
 
@@ -262,6 +275,7 @@ malware running as the user could otherwise send it (TM-IPC-1).
 | `maintenance.enter` | A | Suspend enforcement for ≤ 60 min, with a reason |
 | `maintenance.exit` | A | End maintenance mode |
 | `diagnostics.export` | A | Write a diagnostic bundle and return its path |
+| `setup.initialize` | A | Set the unlock password, security phrase and initial profile; accepted only while Kerub is not yet initialized (SEC-IPC-007) |
 
 ### 8.6 Events (server → client)
 
@@ -269,7 +283,7 @@ malware running as the user could otherwise send it (TM-IPC-1).
 |------|-------|---------|
 | `status.changed` | `status` | New global status and module health |
 | `alert.raised` | `alerts` | Alert summary (ID, severity, title, MITRE technique) |
-| `approval.requested` | `approvals` | Pending device or decision awaiting the user |
+| `approval.requested` | `approvals` | Pending device or decision awaiting the user, with its expiry for input devices (60 s) |
 | `approval.resolved` | `approvals` | Outcome of a pending approval |
 | `action.applied` | `actions` | An action was applied (or simulated in audit mode) |
 | `action.reverted` | `actions` | An action was reverted or expired |
@@ -338,6 +352,12 @@ A lockout raises an alert and writes an audit entry.
   logging, including in diagnostic logs.
 - Password buffers are wiped from memory after verification.
 - Passwords only ever travel over the local pipe, never over a network.
+- **Security phrase:** stored by the service (DPAPI). It is included in the
+  `hello` response only for verified clients; the agent keeps it in memory,
+  never writes it to disk or logs, and never shows it while the service is
+  unverified (SEC-AG-005).
+- `status.get` reports whether Kerub is initialized, so the agent knows when
+  to offer the first-run wizard.
 
 ---
 

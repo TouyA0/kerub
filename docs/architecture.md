@@ -78,11 +78,17 @@ flowchart LR
 | Container | Runs as | Responsibilities | Must never |
 |-----------|---------|------------------|------------|
 | `kerub-svc` | `LocalSystem`, session 0, starts at boot | Collects events, detects, decides, acts, stores, serves the IPC | Show UI; trust the agent's decisions |
-| `kerub-agent` | Interactive user, starts at logon | Displays status, timeline and alerts; asks the user for approvals; forwards requests | Make security decisions; verify passwords; write configuration |
+| `kerub-agent` | Interactive user, starts at logon | Displays status, timeline and alerts; asks the user for approvals; forwards requests | Make security decisions; verify passwords; write configuration; run elevated (first-run wizard excepted) |
 | `kerub-cli` | Administrator, elevated on demand | Status, maintenance mode, diagnostics, emergency reset | Bypass the service for normal operations (emergency reset excepted) |
 
 **Golden rule: the agent asks, the service decides.** Any request coming
 through the pipe is treated as untrusted input, whoever sends it.
+
+**Administrative actions from the agent** (restart the service, maintenance
+mode) launch `kerub-cli` through UAC, with fixed arguments. The agent never
+runs arbitrary programs and never runs elevated — with one exception: the
+first-run wizard is an elevated instance of the agent, started once, whose
+only administrative request is `setup.initialize` (SEC-IPC-007).
 
 ---
 

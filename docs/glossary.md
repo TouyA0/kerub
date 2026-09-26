@@ -30,7 +30,7 @@ same pull request.
 | **Maintenance mode** | A time-limited suspension (≤ 60 min) of all enforcement, requiring elevation. |
 | **Module** | An independently switchable feature (`netguard`, `vpnguard`, `usbguard`, `logwatch`, `posture`…). |
 | **Never-block list** | Addresses Kerub never blocks: loopback, gateway, DNS servers, VPN servers. |
-| **Personal security phrase** | A phrase chosen at setup and shown in every genuine Kerub prompt, so fake prompts can be recognized. |
+| **Personal security phrase** | A phrase chosen at setup and shown in every genuine Kerub prompt, so fake prompts can be recognized. Never shown while the service is unverified. |
 | **Profile (network)** | The trust level assigned to a network: *home*, *public* or *work*. Unknown networks are *public*. |
 | **Reconciliation** | At startup, comparing the action journal with what actually exists in the system, and fixing the differences. |
 | **Record** | Any event, alert or action stored by Kerub. |
@@ -50,6 +50,7 @@ same pull request.
 | **Atomic Red Team** | An open-source library of small, safe simulations of attacker techniques, each mapped to MITRE ATT&CK. Used to test detection. |
 | **Authenticode** | Microsoft's code-signing technology. Verifying a binary's Authenticode signature proves who published it and that it was not modified. |
 | **BadUSB** | A malicious USB device that pretends to be a keyboard and types commands. |
+| **Composite device** | A USB device that exposes several functions at once (for example keyboard + storage). An unusual combination is a classic BadUSB sign. |
 | **BFE (Base Filtering Engine)** | The Windows service that manages WFP filters and loads persistent filters. |
 | **BitLocker** | Windows full-disk encryption. |
 | **Boot-time filter** | A WFP filter enforced from the start of boot, before services start. |

@@ -83,8 +83,10 @@ maintenance mode (step 1 or 2).
 This is the most serious lockout, because recovery tools need input. It is
 prevented by design (§6), but if it happens:
 
-1. Approve the device with the **other** input device (the prompt accepts
-   mouse-only or keyboard-only confirmation).
+1. Approve it with your **mouse**, or with a keyboard Kerub already trusts:
+   the prompt ignores input from the device in question. Without an answer
+   within 60 seconds the device stays blocked; approve it later from the
+   agent's *Devices* page.
 2. Plug the device into the **same port** it used before: Windows may see a
    device moved to another port as a new device.
 3. Reconnect a previously approved keyboard or mouse, or use the laptop's
@@ -223,7 +225,7 @@ enabled in enforce mode.
 | **Never-block list**: loopback, gateway, DNS servers, VPN server (FR-RSP-002) | Kerub cutting its own machine off |
 | Temporary blocks always **expire** | Forgotten blocks |
 | Input devices **present at installation** and built-in keyboards and touchpads are approved automatically | Keyboard or mouse lockout |
-| New input devices can be approved with **any single existing input device** | Keyboard or mouse lockout |
+| New input devices can be approved with the **mouse or any already-trusted keyboard** | Keyboard or mouse lockout |
 | **Captive portal** exception (FR-NET-008) | Kill switch preventing any public Wi-Fi use |
 | Emergency reset and this document **exist and are tested before** the first WFP or device-policy feature | Having no way back |
 

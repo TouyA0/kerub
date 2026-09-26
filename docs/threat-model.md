@@ -119,6 +119,7 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 | TM-IPC-6 | S | Password brute-force through the IPC | Rate limiting with exponential back-off; lockout events logged and alerted |
 | TM-IPC-7 | S/E | A remote attacker reaches the pipe over the network (named pipes are exposed through SMB by default) | Pipe created with remote clients rejected; no network access in the DACL, plus an explicit deny for the `NETWORK` group |
 | TM-IPC-8 | E | A low-integrity process (for example a sandboxed browser renderer) connects to the pipe | Explicit medium mandatory integrity label on the pipe (no-write-up): processes below medium integrity cannot connect |
+| TM-IPC-9 | S/E | Setup hijack: malware running as the user completes Kerub's first-run setup before the user, and sets its own unlock password and security phrase | Initial setup accepted only from an administrator-role client (UAC), and only while Kerub is not yet initialized |
 
 ### 5.2 Service (`kerub-svc`)
 
@@ -138,6 +139,7 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 | TM-AG-2 | T | Malware injects into or modifies the agent | The agent holds no authority: every decision and verification happens in the service |
 | TM-AG-3 | E | Script injection in the WebView2 UI through event data (file names, command lines, hostnames controlled by an attacker) | Event data is never rendered as HTML; strict Content Security Policy; no remote content loaded; minimal set of commands exposed to the front-end, restricted by Tauri's capability system |
 | TM-AG-4 | I | A keylogger in the user session captures the unlock password | Accepted risk (R2); the password only unlocks low-impact actions |
+| TM-AG-5 | I | Malware in the user session reads the security phrase (agent memory, screen capture) and reuses it in a convincing fake prompt | Phrase stored by the service (DPAPI), sent only to a verified agent, kept in memory only, never shown while the service is unverified; the remainder is accepted risk R2 |
 
 ### 5.4 Data stores (configuration, policy, database, audit log, secrets)
 
@@ -180,6 +182,7 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 |----|--------|--------|------------|
 | TM-DEV-1 | E | A BadUSB device types commands before Kerub reacts | Preventive device installation restrictions enforced by Windows; any new HID device requires confirmation |
 | TM-DEV-2 | S | An attacker spoofs the identifiers of an allowed device | Accepted risk (R3): VID, PID and serial number can be forged; the allow-list reduces the risk without eliminating it |
+| TM-DEV-3 | E | A malicious keyboard answers its own confirmation prompt | Its input is blocked until approved; the prompt accepts mouse input or input from already-trusted keyboards only; no answer within 60 s keeps it blocked |
 
 ### 5.9 External services (opt-in)
 
@@ -207,7 +210,7 @@ They must be stated honestly in the README.
 | ID | Risk | Rationale |
 |----|------|-----------|
 | R1 | An attacker with admin or SYSTEM privileges can disable Kerub | Preventing it requires a Microsoft-signed kernel component (ELAM / PPL), out of reach for this project; detection remains best effort |
-| R2 | A keylogger in the user session can capture the unlock password | Inherent to user-mode prompts; impact limited by design (TM-AG-1, TM-AG-4) |
+| R2 | Malware in the user session (keylogger, screen or memory reader) can capture the unlock password or the security phrase | Inherent to user-mode prompts; impact limited by design (TM-AG-1, TM-AG-4, TM-AG-5) |
 | R3 | USB device identifiers can be spoofed | Hardware identifiers are not authenticated by USB |
 | R4 | Detection can be evaded | No detection system is complete; Kerub reduces risk, it does not eliminate it |
 | R5 | Some protections are inactive before the service starts at boot | Partially mitigated by persistent filters and OS-enforced device policies |
