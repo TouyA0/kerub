@@ -117,6 +117,8 @@ Each threat has an ID (`TM-<component>-<n>`) and a STRIDE category:
 | TM-IPC-4 | D | A process floods the pipe to block the service | Connection limit, per-client rate limiting, read timeouts |
 | TM-IPC-5 | R | A harmful request cannot be attributed | Every request is written to the audit log with client PID, image path and user SID |
 | TM-IPC-6 | S | Password brute-force through the IPC | Rate limiting with exponential back-off; lockout events logged and alerted |
+| TM-IPC-7 | S/E | A remote attacker reaches the pipe over the network (named pipes are exposed through SMB by default) | Pipe created with remote clients rejected; no network access in the DACL, plus an explicit deny for the `NETWORK` group |
+| TM-IPC-8 | E | A low-integrity process (for example a sandboxed browser renderer) connects to the pipe | Explicit medium mandatory integrity label on the pipe (no-write-up): processes below medium integrity cannot connect |
 
 ### 5.2 Service (`kerub-svc`)
 

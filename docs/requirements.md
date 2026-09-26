@@ -186,6 +186,7 @@ Each requirement mitigates one or more threats from the
 | SEC-IPC-003 | IPC messages shall be typed, schema-validated and size-limited; no request shall execute arbitrary commands; the parser shall be fuzzed. | TM-IPC-3 | M | 1.0 |
 | SEC-IPC-004 | The IPC shall enforce connection limits, per-client rate limiting, timeouts, and back-off on failed password attempts. | TM-IPC-4, TM-IPC-6 | M | 1.0 |
 | SEC-IPC-005 | Every IPC request shall be audit-logged with client PID, image path and user SID. | TM-IPC-5 | M | 1.0 |
+| SEC-IPC-006 | The pipe shall reject remote clients and processes below medium integrity. | TM-IPC-7, TM-IPC-8 | M | 1.0 |
 | SEC-SVC-001 | Binaries shall be installed under Program Files with a quoted service path; DLLs shall be loaded from System32 only. | TM-SVC-1 | M | 1.0 |
 | SEC-SVC-002 | Service and process DACLs shall deny stop, reconfigure and terminate rights to non-admins. | TM-SVC-2 | M | 1.0 |
 | SEC-SVC-003 | The service shall declare its required privileges and drop all others. | TM-SVC-4 | M | 1.0 |
